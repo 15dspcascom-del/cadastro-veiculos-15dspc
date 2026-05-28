@@ -449,14 +449,56 @@ tr:hover td{background:var(--bg)}
 
   <!-- AUDITORIA -->
   <div class="view" id="view-auditoria">
-    <div class="search-row">
-      <input type="text" id="busca-log" placeholder="Filtrar por placa, nº cadastro, operação..." oninput="carregarAuditoria()">
-      <select id="filtro-op" onchange="carregarAuditoria()" style="width:160px">
-        <option value="">Todas operações</option>
-        <option value="INSERT">Cadastros</option>
-        <option value="UPDATE">Atualizações</option>
-        <option value="DELETE">Exclusões</option>
-      </select>
+    <div class="filtros-wrap">
+      <div class="filtros-title">
+        <span>🔎 Filtros da auditoria</span>
+        <button class="btn" style="font-size:11px;padding:4px 10px" onclick="limparFiltrosAuditoria()">Limpar filtros</button>
+      </div>
+      <div class="filtros-grid">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px">Busca geral</label>
+          <input type="text" id="busca-log" placeholder="Placa, nº cadastro..." oninput="carregarAuditoria()" style="font-size:13px">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px">Tipo de operação</label>
+          <select id="filtro-op" onchange="carregarAuditoria()" style="font-size:13px">
+            <option value="">Todas</option>
+            <option value="INSERT">✚ Cadastros</option>
+            <option value="UPDATE">✎ Atualizações de status</option>
+            <option value="DELETE">✕ Exclusões</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px">Usuário</label>
+          <input type="text" id="filtro-log-usuario" placeholder="E-mail do usuário..." oninput="carregarAuditoria()" style="font-size:13px">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px">Mês</label>
+          <select id="filtro-log-mes" onchange="carregarAuditoria()" style="font-size:13px">
+            <option value="">Todos</option>
+            <option value="-01-">Janeiro</option><option value="-02-">Fevereiro</option><option value="-03-">Março</option>
+            <option value="-04-">Abril</option><option value="-05-">Maio</option><option value="-06-">Junho</option>
+            <option value="-07-">Julho</option><option value="-08-">Agosto</option><option value="-09-">Setembro</option>
+            <option value="-10-">Outubro</option><option value="-11-">Novembro</option><option value="-12-">Dezembro</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px">Ano</label>
+          <select id="filtro-log-ano" onchange="carregarAuditoria()" style="font-size:13px">
+            <option value="">Todos</option>
+            <option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:4px">Mostrar</label>
+          <select id="filtro-log-limit" onchange="carregarAuditoria()" style="font-size:13px">
+            <option value="100">Últimos 100</option>
+            <option value="200">Últimos 200</option>
+            <option value="500">Últimos 500</option>
+            <option value="9999">Todos</option>
+          </select>
+        </div>
+      </div>
     </div>
     <div class="card">
       <div id="audit-conteudo"></div>
@@ -1022,8 +1064,21 @@ async function verFicha(id){
     : '<p style="font-size:13px;color:var(--text-muted)">Nenhuma foto registrada.</p>';
 
   const docHtml = docUrls.length
-
-  const conteudo = `
+    ? '<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">'
+      + docUrls.map(u => u.isPdf
+        ? `<a href="${u.url}" target="_blank" style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--red-50);border:1px solid #fcc;border-radius:8px;text-decoration:none;color:var(--red-600);font-size:13px;font-weight:600">
+            <span style="font-size:20px">📄</span>
+            <div>
+              <div>${u.nome}</div>
+              <div style="font-size:11px;font-weight:400;opacity:.7">Clique para abrir o PDF</div>
+            </div>
+           </a>`
+        : `<a href="${u.url}" target="_blank" style="display:block">
+            <img src="${u.url}" alt="${u.nome}" style="max-width:100%;border-radius:8px;border:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${u.nome}</div>
+           </a>`
+      ).join('') + '</div>'
+    : '<p style="font-size:13px;color:var(--text-muted);margin-top:6px">Nenhum documento anexado.</p>';
     <div style="background:var(--blue-50);border-radius:var(--radius);padding:14px;margin-bottom:1.25rem;border:1px solid var(--blue-200)">
       <div style="font-family:'Courier New',monospace;font-size:24px;font-weight:700;color:var(--blue-800)">${fmt(r.num_cadastro)}</div>
       <div style="font-size:13px;color:var(--blue-600);margin-top:2px">${r.tipo} · ${r.marca} ${r.modelo}</div>
@@ -1294,37 +1349,63 @@ async function carregarRelatorio(){
     : '<p style="color:var(--text-muted);font-size:13px">Nenhum registro para o período selecionado.</p>';
 }
 
+function limparFiltrosAuditoria(){
+  ['busca-log','filtro-op','filtro-log-usuario','filtro-log-mes','filtro-log-ano'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('filtro-log-limit').value='100';
+  carregarAuditoria();
+}
+
 async function carregarAuditoria(){
   const busca=(document.getElementById('busca-log').value||'').toLowerCase();
   const op=document.getElementById('filtro-op').value;
+  const usuario=(document.getElementById('filtro-log-usuario').value||'').toLowerCase();
+  const mes=document.getElementById('filtro-log-mes').value;
+  const ano=document.getElementById('filtro-log-ano').value;
+  const limit=parseInt(document.getElementById('filtro-log-limit').value)||100;
+
   document.getElementById('audit-conteudo').innerHTML='<div style="text-align:center;padding:2rem"><div class="spinner-sm" style="width:28px;height:28px;border-width:3px;margin:0 auto"></div></div>';
-  let q=sb.from('auditoria').select('*').order('criado_em',{ascending:false}).limit(200);
+
+  let q=sb.from('auditoria').select('*').order('criado_em',{ascending:false}).limit(limit);
   if(op) q=q.eq('operacao',op);
+
   const {data,error}=await q;
   if(error){document.getElementById('audit-conteudo').innerHTML='<p style="color:var(--red-600);padding:1rem">Execute o script sql/update_auditoria.sql no Supabase primeiro.</p>';return;}
+
   let items=data||[];
-  if(busca) items=items.filter(l=>{
-    const txt=JSON.stringify(l).toLowerCase();return txt.includes(busca);
-  });
-  if(!items.length){document.getElementById('audit-conteudo').innerHTML='<div class="empty"><p>Nenhum registro de auditoria encontrado.</p></div>';return;}
+
+  // Filtros no frontend
+  if(busca) items=items.filter(l=>JSON.stringify(l).toLowerCase().includes(busca));
+  if(usuario) items=items.filter(l=>(l.usuario_email||'').toLowerCase().includes(usuario));
+  if(mes) items=items.filter(l=>(l.criado_em||'').includes(mes));
+  if(ano) items=items.filter(l=>(l.criado_em||'').startsWith(ano));
+
+  if(!items.length){
+    document.getElementById('audit-conteudo').innerHTML='<div class="empty"><p>Nenhum registro encontrado para os filtros selecionados.</p></div>';
+    return;
+  }
+
   const iconOp={'INSERT':'＋','UPDATE':'✎','DELETE':'✕'};
   const fmtTs=ts=>ts?new Date(ts).toLocaleString('pt-BR'):'—';
-  document.getElementById('audit-conteudo').innerHTML=items.map(l=>{
-    let msg='';
-    if(l.operacao==='INSERT') msg=`Novo veículo cadastrado — Registro #${l.registro_id}`;
-    else if(l.operacao==='DELETE') msg=`Veículo excluído — Registro #${l.registro_id}`;
-    else if(l.campo_alterado==='destinacao') msg=`Status alterado para <strong>${l.valor_depois}</strong> — Registro #${l.registro_id}`;
-    else msg=`Registro #${l.registro_id} atualizado`;
-    const num=l.dados_depois?.num_cadastro||l.dados_antes?.num_cadastro||'';
-    const placa=l.dados_depois?.placa||l.dados_antes?.placa||'';
-    return`<div class="log-item">
-      <div class="log-icon log-${l.operacao}">${iconOp[l.operacao]||'?'}</div>
-      <div class="log-body">
-        <div class="log-msg">${msg}${num?' · <code style="font-size:11px;background:var(--bg);padding:1px 5px;border-radius:3px">'+num+'</code>':''}${placa?' · <strong>'+placa+'</strong>':''}</div>
-        <div class="log-meta">${fmtTs(l.criado_em)}${l.usuario_email?' · '+l.usuario_email:''}</div>
-      </div>
-    </div>`;
-  }).join('');
+  document.getElementById('audit-conteudo').innerHTML=
+    `<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">${items.length} registro(s) encontrado(s)</p>`+
+    items.map(l=>{
+      let msg='';
+      if(l.operacao==='INSERT') msg=`Novo veículo cadastrado — Registro #${l.registro_id}`;
+      else if(l.operacao==='DELETE') msg=`Veículo excluído — Registro #${l.registro_id}`;
+      else if(l.campo_alterado==='destinacao') msg=`Status alterado para <strong>${l.valor_depois}</strong> — Registro #${l.registro_id}`;
+      else msg=`Registro #${l.registro_id} atualizado`;
+      const num=l.dados_depois?.num_cadastro||l.dados_antes?.num_cadastro||'';
+      const placa=l.dados_depois?.placa||l.dados_antes?.placa||'';
+      return`<div class="log-item">
+        <div class="log-icon log-${l.operacao}">${iconOp[l.operacao]||'?'}</div>
+        <div class="log-body">
+          <div class="log-msg">${msg}${num?' · <code style="font-size:11px;background:var(--bg);padding:1px 5px;border-radius:3px">'+num+'</code>':''}${placa?' · <strong>'+placa+'</strong>':''}</div>
+          <div class="log-meta">${fmtTs(l.criado_em)}${l.usuario_email?' · '+l.usuario_email:''}</div>
+        </div>
+      </div>`;
+    }).join('');
 }
 
 // ─── GERENCIAMENTO DE USUÁRIOS (admin) ───────────────────────
