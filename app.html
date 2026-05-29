@@ -326,6 +326,11 @@ tr:hover td{background:var(--bg)}
       <div class="field" style="margin-top:14px"><label>Quem recebeu (nome, endereço, contatos)</label><textarea id="quem-recebeu"></textarea></div>
       <div class="field" style="margin-top:14px"><label>Nome/matrícula do delegado que restituiu/encaminhou</label><input type="text" id="del-restituiu"></div>
 
+      <div class="field" style="margin-top:14px">
+        <label>Observações</label>
+        <textarea id="observacoes" rows="3" placeholder="Informações adicionais, protocolos, anotações..."></textarea>
+      </div>
+
       <div class="btn-row">
         <button class="btn btn-primary" id="btn-salvar" onclick="salvar()">💾 Salvar registro</button>
         <button class="btn" onclick="limpar()">✕ Limpar formulário</button>
@@ -889,6 +894,7 @@ async function salvar(){
     data_destinacao:document.getElementById('data-dest').value||null,
     quem_recebeu:document.getElementById('quem-recebeu').value,
     delegado_restituiu:document.getElementById('del-restituiu').value,
+    observacoes:document.getElementById('observacoes').value,
     criado_por:session.user.id
   };
   const {data:novo,error}=await sb.from('veiculos').insert(reg).select().single();
@@ -908,7 +914,7 @@ async function salvar(){
 }
 
 function limpar(){
-  ['seq','ano','marca','modelo','ano-veiculo','placa','cor','chassi','renavam','proprietario','local-ap','motivacao','pessoa','qual-pericia','data-pericia','del-origem','deposito','del-recebimento','data-enc-origem','num-proc','num-processo','data-dest','quem-recebeu','del-restituiu','data-ap'].forEach(id=>{
+  ['seq','ano','marca','modelo','ano-veiculo','placa','cor','chassi','renavam','proprietario','local-ap','motivacao','pessoa','qual-pericia','data-pericia','del-origem','deposito','del-recebimento','data-enc-origem','num-proc','num-processo','data-dest','quem-recebeu','del-restituiu','data-ap','observacoes'].forEach(id=>{
     const el=document.getElementById(id);if(el) el.value=id==='ano'?'2026':'';
   });
   document.getElementById('unidade').value='';
@@ -1109,6 +1115,7 @@ async function verFicha(id){
     ${dr('Solicitada',r.pericia_sol)}${dr('Realizada',r.pericia_real)}${dr('Qual',r.qual_pericia)}${dr('Data',fmtD(r.data_pericia))}
     <div class="sec-title">Destinação</div>
     ${dr('Situação',r.destinacao)}${dr('Data',fmtD(r.data_destinacao))}${dr('Quem recebeu',r.quem_recebeu)}${dr('Delegado',r.delegado_restituiu)}
+    ${r.observacoes?`<div class="sec-title">Observações</div><div style="font-size:13px;padding:8px 0;line-height:1.6">${r.observacoes}</div>`:''}
   `;
 
   document.getElementById('modal-conteudo').innerHTML=`
@@ -1363,13 +1370,22 @@ function limparFiltrosAuditoria(){
   carregarAuditoria();
 }
 
-async function carregarAuditoria(){
+let auditoriaPagAtual = 1;
+let auditoriaItemsCache = [];
+const AUDITORIA_POR_PAGINA = 40;
+
+async function carregarAuditoria(pagina){
+  if(pagina) auditoriaPagAtual = pagina;
+
   const busca=(document.getElementById('busca-log').value||'').toLowerCase();
   const op=document.getElementById('filtro-op').value;
   const usuario=(document.getElementById('filtro-log-usuario').value||'').toLowerCase();
   const mes=document.getElementById('filtro-log-mes').value;
   const ano=document.getElementById('filtro-log-ano').value;
   const limit=parseInt(document.getElementById('filtro-log-limit').value)||100;
+
+  // Se os filtros mudaram (chamada sem pagina), resetar para página 1
+  if(!pagina) auditoriaPagAtual = 1;
 
   document.getElementById('audit-conteudo').innerHTML='<div style="text-align:center;padding:2rem"><div class="spinner-sm" style="width:28px;height:28px;border-width:3px;margin:0 auto"></div></div>';
 
@@ -1380,23 +1396,61 @@ async function carregarAuditoria(){
   if(error){document.getElementById('audit-conteudo').innerHTML='<p style="color:var(--red-600);padding:1rem">Execute o script sql/update_auditoria.sql no Supabase primeiro.</p>';return;}
 
   let items=data||[];
-
-  // Filtros no frontend
   if(busca) items=items.filter(l=>JSON.stringify(l).toLowerCase().includes(busca));
   if(usuario) items=items.filter(l=>(l.usuario_email||'').toLowerCase().includes(usuario));
   if(mes) items=items.filter(l=>(l.criado_em||'').includes(mes));
   if(ano) items=items.filter(l=>(l.criado_em||'').startsWith(ano));
+
+  auditoriaItemsCache = items;
 
   if(!items.length){
     document.getElementById('audit-conteudo').innerHTML='<div class="empty"><p>Nenhum registro encontrado para os filtros selecionados.</p></div>';
     return;
   }
 
+  renderAuditoriaPagina();
+}
+
+function renderAuditoriaPagina(){
+  const items = auditoriaItemsCache;
+  const total = items.length;
+  const totalPags = Math.ceil(total / AUDITORIA_POR_PAGINA);
+  const inicio = (auditoriaPagAtual - 1) * AUDITORIA_POR_PAGINA;
+  const fim = Math.min(inicio + AUDITORIA_POR_PAGINA, total);
+  const pagItems = items.slice(inicio, fim);
+
   const iconOp={'INSERT':'＋','UPDATE':'✎','DELETE':'✕'};
   const fmtTs=ts=>ts?new Date(ts).toLocaleString('pt-BR'):'—';
+
+  // Paginação
+  let paginacao = '';
+  if(totalPags > 1){
+    const btnStyle = 'padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:12px;font-weight:600';
+    const btnAtivo = 'padding:6px 12px;border-radius:6px;border:1px solid var(--blue-600);background:var(--blue-600);color:#fff;cursor:default;font-size:12px;font-weight:600';
+
+    let botoesNums = '';
+    for(let i=1; i<=totalPags; i++){
+      if(i===1 || i===totalPags || (i>=auditoriaPagAtual-2 && i<=auditoriaPagAtual+2)){
+        botoesNums += `<button style="${i===auditoriaPagAtual?btnAtivo:btnStyle}" onclick="renderAuditoriaPaginaIr(${i})" ${i===auditoriaPagAtual?'disabled':''}>${i}</button>`;
+      } else if(i===auditoriaPagAtual-3 || i===auditoriaPagAtual+3){
+        botoesNums += `<span style="padding:4px 6px;color:var(--text-muted)">...</span>`;
+      }
+    }
+
+    paginacao = `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--border);margin-top:8px;flex-wrap:wrap;gap:8px">
+        <span style="font-size:12px;color:var(--text-muted)">Mostrando ${inicio+1}–${fim} de ${total} registro(s)</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <button style="${btnStyle}" onclick="renderAuditoriaPaginaIr(${auditoriaPagAtual-1})" ${auditoriaPagAtual===1?'disabled style="opacity:.4;cursor:not-allowed"':''}>← Anterior</button>
+          ${botoesNums}
+          <button style="${btnStyle}" onclick="renderAuditoriaPaginaIr(${auditoriaPagAtual+1})" ${auditoriaPagAtual===totalPags?'disabled style="opacity:.4;cursor:not-allowed"':''}>Próxima →</button>
+        </div>
+      </div>`;
+  }
+
   document.getElementById('audit-conteudo').innerHTML=
-    `<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">${items.length} registro(s) encontrado(s)</p>`+
-    items.map(l=>{
+    `<p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">${total} registro(s) encontrado(s) · Página ${auditoriaPagAtual} de ${totalPags||1}</p>`+
+    pagItems.map(l=>{
       let msg='';
       if(l.operacao==='INSERT') msg=`Novo veículo cadastrado — Registro #${l.registro_id}`;
       else if(l.operacao==='DELETE') msg=`Veículo excluído — Registro #${l.registro_id}`;
@@ -1411,7 +1465,15 @@ async function carregarAuditoria(){
           <div class="log-meta">${fmtTs(l.criado_em)}${l.usuario_email?' · '+l.usuario_email:''}</div>
         </div>
       </div>`;
-    }).join('');
+    }).join('')+paginacao;
+}
+
+function renderAuditoriaPaginaIr(pag){
+  const totalPags = Math.ceil(auditoriaItemsCache.length / AUDITORIA_POR_PAGINA);
+  if(pag < 1 || pag > totalPags) return;
+  auditoriaPagAtual = pag;
+  renderAuditoriaPagina();
+  document.getElementById('view-auditoria').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 // ─── GERENCIAMENTO DE USUÁRIOS (admin) ───────────────────────
