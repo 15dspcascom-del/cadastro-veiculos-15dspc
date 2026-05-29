@@ -503,6 +503,10 @@ tr:hover td{background:var(--bg)}
     <div class="card">
       <div id="audit-conteudo"></div>
     </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:.75rem">
+      <button class="btn" onclick="exportarAuditoriaCSV()" style="font-size:12px">📋 Exportar CSV</button>
+      <button class="btn btn-primary" onclick="exportarAuditoriaExcel()" style="font-size:12px">📊 Exportar Excel</button>
+    </div>
   </div>
 
   <!-- USUÁRIOS (só admin) -->
@@ -1611,6 +1615,55 @@ async function exportarExcel(){
   // Gerar e baixar
   XLSX.writeFile(wb,'15dspc_exportacao_'+new Date().toISOString().slice(0,10)+'.xlsx');
   toast('Excel exportado com sucesso!');
+}
+
+async function exportarAuditoriaCSV(){
+  const {data}=await sb.from('auditoria').select('*').order('criado_em',{ascending:false});
+  if(!data||!data.length){toast('Nenhum registro de auditoria.','err');return;}
+  const fmtTs=v=>v?new Date(v).toLocaleString('pt-BR'):'';
+  const header=['Data/Hora','Operação','Nº Cadastro','Placa','Campo Alterado','Valor Antes','Valor Depois','Usuário'];
+  const rows=data.map(l=>[
+    fmtTs(l.criado_em),
+    l.operacao==='INSERT'?'Cadastro':l.operacao==='DELETE'?'Exclusão':'Atualização',
+    l.dados_depois?.num_cadastro||l.dados_antes?.num_cadastro||'',
+    l.dados_depois?.placa||l.dados_antes?.placa||'',
+    l.campo_alterado||'',l.valor_antes||'',l.valor_depois||'',
+    l.usuario_email||''
+  ]);
+  const csv=[header.join(';')].concat(rows.map(r=>r.map(v=>v.toString().replace(/;/g,',')).join(';'))).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='auditoria_15dspc_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+  toast('CSV de auditoria exportado!');
+}
+
+async function exportarAuditoriaExcel(){
+  toast('Gerando Excel...');
+  await new Promise((res,rej)=>{
+    if(window.XLSX){res();return;}
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=res;s.onerror=rej;
+    document.head.appendChild(s);
+  });
+  const {data}=await sb.from('auditoria').select('*').order('criado_em',{ascending:false});
+  if(!data||!data.length){toast('Nenhum registro de auditoria.','err');return;}
+  const fmtTs=v=>v?new Date(v).toLocaleString('pt-BR'):'';
+  const header=['Data/Hora','Operação','Nº Cadastro','Placa','Campo Alterado','Valor Antes','Valor Depois','Usuário'];
+  const rows=data.map(l=>[
+    fmtTs(l.criado_em),
+    l.operacao==='INSERT'?'Cadastro':l.operacao==='DELETE'?'Exclusão':'Atualização',
+    l.dados_depois?.num_cadastro||l.dados_antes?.num_cadastro||'',
+    l.dados_depois?.placa||l.dados_antes?.placa||'',
+    l.campo_alterado||'',l.valor_antes||'',l.valor_depois||'',
+    l.usuario_email||''
+  ]);
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet([header,...rows]);
+  ws['!cols']=[{wch:18},{wch:14},{wch:16},{wch:12},{wch:18},{wch:20},{wch:20},{wch:28}];
+  XLSX.utils.book_append_sheet(wb,ws,'Auditoria');
+  XLSX.writeFile(wb,'auditoria_15dspc_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  toast('Excel de auditoria exportado!');
 }
 
 function openLB(src){document.getElementById('lb-img').src=src;document.getElementById('lightbox').classList.add('open');}
