@@ -282,7 +282,7 @@ tr:hover td{background:var(--bg)}
       <div class="sec-title">C) Dados da ocorrência</div>
       <div class="form-grid">
         <div class="field"><label>Restrição de furto/roubo</label><div class="radio-group"><label><input type="radio" name="restricao" value="SIM"> Sim</label><label><input type="radio" name="restricao" value="NÃO"> Não</label><label><input type="radio" name="restricao" value="OUTRO"> Outro</label></div></div>
-        <div class="field"><label>Data da apreensão <span class="req">*</span></label><input type="date" id="data-ap"></div>
+        <div class="field"><label>Data da apreensão <span class="req">*</span></label><input type="date" id="data-ap" max=""></div>
       </div>
       <div class="field" style="margin-top:14px"><label>Local da apreensão</label><input type="text" id="local-ap"></div>
       <div class="field" style="margin-top:14px"><label>Motivação da apreensão</label><input type="text" id="motivacao" placeholder="Embriaguez ao volante, Acidente com vítima fatal..."></div>
@@ -754,6 +754,11 @@ async function init(){
   }
 
   renderCodigos();
+
+  // Limitar data de apreensão ao dia atual
+  const hoje = new Date().toISOString().split('T')[0];
+  const dataAp = document.getElementById('data-ap');
+  if(dataAp) dataAp.max = hoje;
 }
 
 function filtrarSelectUnidades(permitidas){
