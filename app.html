@@ -518,9 +518,10 @@ tr:hover td{background:var(--bg)}
   <div class="view" id="view-usuarios">
     <div class="card" style="margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
       <p style="font-size:13px;color:var(--text-muted);margin:0">Gerencie os usuários e defina quais delegacias cada um pode acessar.</p>
-      <div style="display:flex;gap:8px">
-        <button class="btn" onclick="exportarUsuariosCSV()" style="font-size:12px">📋 Exportar usuários CSV</button>
-        <button class="btn btn-primary" onclick="exportarExcel()" style="font-size:12px">📊 Exportar Excel geral</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="abrirModalNovoUsuario()" style="font-size:12px">＋ Novo Usuário</button>
+        <button class="btn" onclick="exportarUsuariosCSV()" style="font-size:12px">📋 Exportar CSV</button>
+        <button class="btn" onclick="exportarExcel()" style="font-size:12px">📊 Exportar Excel</button>
       </div>
     </div>
     <div class="card"><div id="usuarios-conteudo"></div></div>
@@ -534,6 +535,67 @@ tr:hover td{background:var(--bg)}
     </div>
   </div>
 
+</div>
+
+<!-- MODAL NOVO USUÁRIO -->
+<div class="modal-usuarios" id="modal-novo-usuario" onclick="fecharModalNovoUsuario(event)">
+  <div class="modal-usuarios-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+      <h3 style="font-size:15px;font-weight:700">➕ Novo Usuário</h3>
+      <button class="btn" onclick="document.getElementById('modal-novo-usuario').classList.remove('open')">✕</button>
+    </div>
+
+    <div style="background:var(--blue-50);border:1px solid var(--blue-200);border-radius:8px;padding:10px 14px;margin-bottom:1.25rem;font-size:12px;color:var(--blue-800)">
+      💡 O usuário receberá a senha temporária abaixo e será obrigado a criar uma senha pessoal no primeiro acesso.
+    </div>
+
+    <div class="form-grid-2" style="margin-bottom:1rem">
+      <div class="field">
+        <label>Nome completo <span class="req">*</span></label>
+        <input type="text" id="novo-user-nome" placeholder="Nome do usuário">
+      </div>
+      <div class="field">
+        <label>E-mail <span class="req">*</span></label>
+        <input type="email" id="novo-user-email" placeholder="usuario@pc.pb.gov.br">
+      </div>
+    </div>
+    <div class="form-grid-2" style="margin-bottom:1rem">
+      <div class="field">
+        <label>Matrícula</label>
+        <input type="text" id="novo-user-matricula" placeholder="Ex: 12345">
+      </div>
+      <div class="field">
+        <label>Cargo / Função</label>
+        <input type="text" id="novo-user-cargo" placeholder="Ex: Delegado, Investigador...">
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:1rem">
+      <label>Senha temporária <span class="req">*</span></label>
+      <input type="text" id="novo-user-senha" value="Patos@2026" placeholder="Senha temporária">
+      <span style="font-size:11px;color:var(--text-muted);margin-top:4px;display:block">O usuário deverá trocar esta senha no primeiro acesso.</span>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--amber-50);border-radius:8px;margin-bottom:1rem;border:1px solid #F0C070">
+      <input type="checkbox" id="novo-user-admin" style="width:16px;height:16px;accent-color:var(--blue-600)">
+      <label for="novo-user-admin" style="font-size:13px;font-weight:600;cursor:pointer">Administrador — acesso total a todas as delegacias</label>
+    </div>
+
+    <div id="novo-user-unidades-section">
+      <p style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Delegacias permitidas</p>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="btn" style="font-size:12px;padding:5px 12px" onclick="marcarTodasNovoUser(true)">Marcar todas</button>
+        <button class="btn" style="font-size:12px;padding:5px 12px" onclick="marcarTodasNovoUser(false)">Desmarcar todas</button>
+      </div>
+      <div class="unidade-check-grid" id="novo-user-unidades-grid"></div>
+    </div>
+
+    <div id="novo-user-msg" style="display:none;margin-top:1rem;padding:10px 14px;border-radius:8px;font-size:13px"></div>
+
+    <div class="btn-row" style="margin-top:1.25rem">
+      <button class="btn btn-primary" id="btn-criar-usuario" onclick="criarNovoUsuario()">✅ Criar usuário</button>
+      <button class="btn" onclick="document.getElementById('modal-novo-usuario').classList.remove('open')">Cancelar</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL PERMISSÕES USUÁRIO -->
@@ -694,15 +756,20 @@ async function init(){
 }
 
 function filtrarSelectUnidades(permitidas){
-  const sel=document.getElementById('unidade');
-  Array.from(sel.options).forEach(opt=>{
-    if(opt.value===''||opt.disabled) return;
-    opt.hidden=!permitidas.includes(opt.value);
-  });
-  // Esconder optgroups vazios
-  Array.from(sel.querySelectorAll('optgroup')).forEach(grp=>{
-    const visibles=Array.from(grp.querySelectorAll('option')).filter(o=>!o.hidden);
-    grp.hidden=visibles.length===0;
+  // Aplicar filtro em todos os selects de unidade do sistema
+  const seletores = ['#unidade', '#filtro-unidade', '#rel-unidade'];
+  seletores.forEach(sel => {
+    const el = document.querySelector(sel);
+    if(!el) return;
+    Array.from(el.options).forEach(opt => {
+      if(opt.value === '' || opt.disabled) return;
+      opt.hidden = !permitidas.includes(opt.value);
+    });
+    // Esconder optgroups vazios
+    Array.from(el.querySelectorAll('optgroup')).forEach(grp => {
+      const visibles = Array.from(grp.querySelectorAll('option')).filter(o => !o.hidden);
+      grp.hidden = visibles.length === 0;
+    });
   });
 }
 
@@ -1474,6 +1541,113 @@ function renderAuditoriaPaginaIr(pag){
   auditoriaPagAtual = pag;
   renderAuditoriaPagina();
   document.getElementById('view-auditoria').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ─── NOVO USUÁRIO ────────────────────────────────────────────
+function abrirModalNovoUsuario(){
+  document.getElementById('novo-user-nome').value='';
+  document.getElementById('novo-user-email').value='';
+  document.getElementById('novo-user-matricula').value='';
+  document.getElementById('novo-user-cargo').value='';
+  document.getElementById('novo-user-senha').value='Patos@2026';
+  document.getElementById('novo-user-admin').checked=false;
+  document.getElementById('novo-user-msg').style.display='none';
+  document.getElementById('btn-criar-usuario').disabled=false;
+  document.getElementById('btn-criar-usuario').textContent='✅ Criar usuário';
+
+  const grid=document.getElementById('novo-user-unidades-grid');
+  grid.innerHTML=UNIDADES.map(([nome,sigla])=>`
+    <label class="unidade-check-item">
+      <input type="checkbox" value="${sigla}">
+      <span>${nome} <strong>(${sigla})</strong></span>
+    </label>`).join('');
+
+  document.getElementById('modal-novo-usuario').classList.add('open');
+}
+
+function fecharModalNovoUsuario(e){
+  if(e.target===document.getElementById('modal-novo-usuario'))
+    document.getElementById('modal-novo-usuario').classList.remove('open');
+}
+
+function marcarTodasNovoUser(marcar){
+  document.querySelectorAll('#novo-user-unidades-grid input[type=checkbox]').forEach(c=>c.checked=marcar);
+}
+
+async function criarNovoUsuario(){
+  const nome = document.getElementById('novo-user-nome').value.trim();
+  const email = document.getElementById('novo-user-email').value.trim();
+  const matricula = document.getElementById('novo-user-matricula').value.trim();
+  const cargo = document.getElementById('novo-user-cargo').value.trim();
+  const senha = document.getElementById('novo-user-senha').value.trim();
+  const isAdmin = document.getElementById('novo-user-admin').checked;
+  const unidades = Array.from(document.querySelectorAll('#novo-user-unidades-grid input:checked')).map(c=>c.value);
+  const msg = document.getElementById('novo-user-msg');
+  const btn = document.getElementById('btn-criar-usuario');
+
+  if(!nome||!email||!senha){
+    msg.style.display='block';
+    msg.style.background='var(--red-50)';msg.style.border='1px solid #fcc';msg.style.color='var(--red-600)';
+    msg.textContent='Preencha o nome, e-mail e senha temporária.';
+    return;
+  }
+
+  btn.disabled=true;btn.textContent='Criando...';
+  msg.style.display='none';
+
+  try{
+    // Criar usuário via Admin API do Supabase
+    const resp = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${(await sb.auth.getSession()).data.session?.access_token}`
+      },
+      body: JSON.stringify({
+        email,
+        password: senha,
+        email_confirm: true
+      })
+    });
+
+    const result = await resp.json();
+
+    if(!resp.ok){
+      throw new Error(result.msg || result.message || 'Erro ao criar usuário');
+    }
+
+    const userId = result.id;
+
+    // Criar perfil com primeiro_acesso = TRUE
+    const {error:perfErr} = await sb.from('perfis').insert({
+      id: userId,
+      nome,
+      matricula: matricula||null,
+      cargo: cargo||null,
+      is_admin: isAdmin,
+      unidades_permitidas: isAdmin?[]:unidades,
+      primeiro_acesso: true
+    });
+
+    if(perfErr) throw new Error('Usuário criado mas erro no perfil: '+perfErr.message);
+
+    msg.style.display='block';
+    msg.style.background='var(--green-50)';msg.style.border='1px solid #b0d890';msg.style.color='var(--green-600)';
+    msg.textContent=`✓ Usuário ${email} criado! Senha temporária: ${senha}`;
+    btn.textContent='✅ Criado!';
+
+    setTimeout(()=>{
+      document.getElementById('modal-novo-usuario').classList.remove('open');
+      carregarUsuarios();
+    }, 2500);
+
+  } catch(e){
+    msg.style.display='block';
+    msg.style.background='var(--red-50)';msg.style.border='1px solid #fcc';msg.style.color='var(--red-600)';
+    msg.textContent='Erro: '+e.message;
+    btn.disabled=false;btn.textContent='✅ Criar usuário';
+  }
 }
 
 // ─── GERENCIAMENTO DE USUÁRIOS (admin) ───────────────────────
