@@ -741,6 +741,7 @@ async function init(){
   // Carregar perfil
   const {data:perfil}=await sb.from('perfis').select('*').eq('id',data.session.user.id).single();
   perfilAtual=perfil||{is_admin:false,unidades_permitidas:[]};
+  perfilAtual.email = data.session.user.email;
 
   // Mostrar aba admin
   if(perfilAtual.is_admin){
@@ -941,7 +942,6 @@ async function salvar(){
   if(!seq||!placa||!tipo||!marca||!modelo||!unid||!dataAp){toast('Preencha os campos obrigatórios (*)','err');return;}
   const btn=document.getElementById('btn-salvar');
   btn.disabled=true;btn.textContent='Salvando...';
-  const {data:{session}}=await sb.auth.getSession();
   const reg={
     num_cadastro:seq.padStart(2,'0')+'/'+document.getElementById('ano').value+'-'+unid,
     seq,ano_apreensao:document.getElementById('ano').value,unidade:unid,tipo,marca,modelo,
@@ -962,10 +962,17 @@ async function salvar(){
     quem_recebeu:document.getElementById('quem-recebeu').value,
     delegado_restituiu:document.getElementById('del-restituiu').value,
     observacoes:document.getElementById('observacoes').value,
-    criado_por:session.user.id
+    criado_por: perfilAtual?.id || null
   };
   const {data:novo,error}=await sb.from('veiculos').insert(reg).select().single();
   if(error){toast('Erro ao salvar: '+error.message,'err');btn.disabled=false;btn.textContent='💾 Salvar registro';return;}
+
+  // Registrar na auditoria
+  await sb.from('auditoria').insert({
+    tabela:'veiculos', operacao:'INSERT', registro_id:novo.id,
+    dados_depois:{num_cadastro:novo.num_cadastro, placa:novo.placa},
+    usuario_email: perfilAtual?.email || ''
+  });
   for(const f of fotosTemp){
     const path=`${novo.id}/${Date.now()}-${f.name.replace(/\s/g,'_')}`;
     const {error:upErr}=await sb.storage.from('fotos-veiculos').upload(path,f);
@@ -1030,11 +1037,10 @@ async function confirmarMudancaStatus(){
     selectEl.value = statusAnterior;
     return;
   }
-  const {data:{session}} = await sb.auth.getSession();
   await sb.from('auditoria').insert({
     tabela:'veiculos', operacao:'UPDATE', registro_id:id,
     campo_alterado:'destinacao', valor_antes:statusAnterior, valor_depois:status,
-    usuario_email:session?.user?.email
+    usuario_email: perfilAtual?.email || ''
   });
   selectEl.dataset.atual = status;
   selectEl.className = 'status-select ' + getStatusCls(status);
