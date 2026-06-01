@@ -1607,41 +1607,29 @@ async function criarNovoUsuario(){
   msg.style.display='none';
 
   try{
-    // Criar usuário via Admin API do Supabase
-    const resp = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+    const session = (await sb.auth.getSession()).data.session;
+    if(!session) throw new Error('Sessão expirada. Faça login novamente.');
+
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/criar-usuario`, {
       method:'POST',
       headers:{
         'Content-Type':'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${(await sb.auth.getSession()).data.session?.access_token}`
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': SUPABASE_ANON_KEY
       },
       body: JSON.stringify({
         email,
         password: senha,
-        email_confirm: true
+        nome,
+        matricula: matricula||null,
+        cargo: cargo||null,
+        is_admin: isAdmin,
+        unidades_permitidas: isAdmin?[]:unidades
       })
     });
 
     const result = await resp.json();
-
-    if(!resp.ok){
-      throw new Error(result.msg || result.message || 'Erro ao criar usuário');
-    }
-
-    const userId = result.id;
-
-    // Criar perfil com primeiro_acesso = TRUE
-    const {error:perfErr} = await sb.from('perfis').insert({
-      id: userId,
-      nome,
-      matricula: matricula||null,
-      cargo: cargo||null,
-      is_admin: isAdmin,
-      unidades_permitidas: isAdmin?[]:unidades,
-      primeiro_acesso: true
-    });
-
-    if(perfErr) throw new Error('Usuário criado mas erro no perfil: '+perfErr.message);
+    if(!resp.ok) throw new Error(result.error || 'Erro ao criar usuário');
 
     msg.style.display='block';
     msg.style.background='var(--green-50)';msg.style.border='1px solid #b0d890';msg.style.color='var(--green-600)';
