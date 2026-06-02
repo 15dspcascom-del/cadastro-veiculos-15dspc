@@ -1658,7 +1658,48 @@ async function carregarUsuarios(){
   if(error){document.getElementById('usuarios-conteudo').innerHTML='<p style="color:var(--red-600);padding:1rem">Execute o script sql/update_perfis.sql no Supabase primeiro.</p>';return;}
   if(!perfis||!perfis.length){document.getElementById('usuarios-conteudo').innerHTML='<p style="padding:1rem;color:var(--text-muted)">Nenhum usuário encontrado.</p>';return;}
 
-  perfisCache = perfis;
+  // Buscar emails da view auth_emails que criamos
+  const {data:emails} = await sb.from('user_emails').select('id, email');
+  const emailMap = {};
+  (emails||[]).forEach(e => emailMap[e.id] = e.email);
+
+  perfisCache = perfis.map(p => ({...p, email: emailMap[p.id] || ''}));
+
+  document.getElementById('usuarios-conteudo').innerHTML=perfisCache.map((p,idx)=>{
+    const inicial=(p.nome||p.email||p.id).charAt(0).toUpperCase();
+    const unidNomes=(p.unidades_permitidas||[]).map(s=>{const u=UNIDADES.find(x=>x[1]===s);return u?u[0]:s;});
+    return`<div class="user-card">
+      <div class="user-info">
+        <div class="user-avatar" style="width:44px;height:44px;font-size:18px;flex-shrink:0">${inicial}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <span class="user-name" style="font-size:14px">${p.nome||'<span style="color:var(--text-muted);font-style:italic;font-weight:400">Nome não cadastrado</span>'}</span>
+            ${p.is_admin?'<span class="badge badge-purple">Admin</span>':''}
+            ${p.ativo===false?'<span class="badge badge-red">Inativo</span>':''}
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:4px 16px;margin-bottom:6px">
+            <div style="font-size:12px;color:var(--text-muted)">
+              📧 E-mail: <strong style="color:var(--text-primary)">${p.email||'—'}</strong>
+            </div>
+            <div style="font-size:12px;color:var(--text-muted)">
+              🪪 Matrícula: <strong style="color:var(--text-primary)">${p.matricula||'—'}</strong>
+            </div>
+            <div style="font-size:12px;color:var(--text-muted)">
+              👤 Cargo: <strong style="color:var(--text-primary)">${p.cargo||'—'}</strong>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px">🏛 Regiões:</div>
+          ${unidNomes.length
+            ?`<div class="unidades-wrap">${unidNomes.map(n=>`<span class="tag-unidade">${n}</span>`).join('')}</div>`
+            :'<span style="font-size:12px;color:var(--blue-600);font-weight:500">Acesso a todas as delegacias</span>'}
+        </div>
+      </div>
+      <div class="user-actions" style="align-self:flex-start;padding-top:4px">
+        <button class="btn" style="font-size:12px;padding:6px 14px" onclick="abrirPermissoes(${idx})">✎ Editar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
 
   document.getElementById('usuarios-conteudo').innerHTML=perfis.map((p,idx)=>{
     const inicial=(p.nome||p.id).charAt(0).toUpperCase();
@@ -1674,7 +1715,7 @@ async function carregarUsuarios(){
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:4px 16px;margin-bottom:6px">
             <div style="font-size:12px;color:var(--text-muted)">
-              📧 <span style="color:var(--text-primary)">${p.id.substring(0,28)}...</span>
+              📧 E-mail: <strong style="color:var(--text-primary)">${p.nome&&p.nome!==p.id?p.id.substring(0,28)+'...':p.id.substring(0,28)+'...'}</strong>
             </div>
             <div style="font-size:12px;color:var(--text-muted)">
               🪪 Matrícula: <strong style="color:var(--text-primary)">${p.matricula||'—'}</strong>
