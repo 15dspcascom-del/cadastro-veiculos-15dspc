@@ -263,7 +263,7 @@ tr:hover td{background:var(--bg)}
       <div class="foto-drop" onclick="document.getElementById('foto-inp').click()">
         <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         <p>Clique para adicionar fotos do veículo</p>
-        <small>JPG, PNG ou WEBP · até 5 fotos · 5 MB cada</small>
+        <small>JPG, PNG ou WEBP · até 3 fotos · 5 MB cada</small>
       </div>
       <input type="file" id="foto-inp" accept="image/*" multiple style="display:none" onchange="addFotos(this)">
       <div class="fotos-grid" id="fotos-preview"></div>
@@ -273,7 +273,7 @@ tr:hover td{background:var(--bg)}
       <div class="foto-drop" onclick="document.getElementById('doc-inp').click()" style="border-color:var(--teal-600);background:var(--teal-50,#E1F5EE)">
         <svg viewBox="0 0 24 24" style="stroke:var(--teal-600)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         <p style="color:var(--teal-600)">Clique para anexar ofício ou termo de entrega</p>
-        <small>PDF, JPG ou PNG · até 3 arquivos · 10 MB cada</small>
+        <small>PDF, JPG ou PNG · até 2 arquivos · 10 MB cada</small>
       </div>
       <input type="file" id="doc-inp" accept=".pdf,image/*" multiple style="display:none" onchange="addDocs(this)">
       <div class="fotos-grid" id="docs-preview"></div>
@@ -704,7 +704,7 @@ let docsTemp=[];
 // ─── DOCUMENTOS ───────────────────────────────────────────────
 function addDocs(inp){
   const files=Array.from(inp.files);
-  if(docsTemp.length+files.length>3){toast('Máximo 3 documentos.','err');inp.value='';return;}
+  if(docsTemp.length+files.length>2){toast('Máximo 2 documentos por veículo.','err');inp.value='';return;}
   files.forEach(f=>{
     if(f.size>10*1024*1024){toast('Arquivo muito grande: '+f.name,'err');return;}
     docsTemp.push(f);
@@ -727,7 +727,7 @@ function renderDocsPrev(){
     </div>`;
   }).join('');
   const counter=document.getElementById('doc-counter');
-  if(counter) counter.textContent=docsTemp.length?docsTemp.length+'/3 documento(s)':'';
+  if(counter) counter.textContent=docsTemp.length?docsTemp.length+'/2 documento(s)':'';
 }
 
 function remDocTemp(i){docsTemp.splice(i,1);renderDocsPrev();}
@@ -917,7 +917,7 @@ function updateNum(){
 
 function addFotos(inp){
   const files=Array.from(inp.files);
-  if(fotosTemp.length+files.length>5){toast('Máximo 5 fotos.','err');inp.value='';return;}
+  if(fotosTemp.length+files.length>3){toast('Máximo 3 fotos por veículo.','err');inp.value='';return;}
   files.forEach(f=>{
     if(f.size>5*1024*1024){toast('Foto maior que 5 MB: '+f.name,'err');return;}
     fotosTemp.push(f);
@@ -931,12 +931,12 @@ function renderFotosPrev(){
     const url=URL.createObjectURL(f);
     return`<div class="foto-item"><img src="${url}" alt="${f.name}"><button class="foto-remove" onclick="remFotoTemp(${i})">✕</button><div class="foto-label">${f.name}</div></div>`;
   }).join('');
-  document.getElementById('foto-counter').textContent=fotosTemp.length?fotosTemp.length+'/5 foto(s)':'';
+  document.getElementById('foto-counter').textContent=fotosTemp.length?fotosTemp.length+'/3 foto(s)':'';
 }
 
 function remFotoTemp(i){fotosTemp.splice(i,1);renderFotosPrev();}
 
-async function salvar(){
+let _salvandoEmAndamento = false; async function salvar(){   if(_salvandoEmAndamento){toast('Aguarde, salvamento em andamento...','err');return;}   _salvandoEmAndamento = true;
   const seq=document.getElementById('seq').value.trim();
   const placa=document.getElementById('placa').value.trim();
   const tipo=document.getElementById('tipo').value;
@@ -944,7 +944,7 @@ async function salvar(){
   const modelo=document.getElementById('modelo').value.trim();
   const unid=document.getElementById('unidade').value;
   const dataAp=document.getElementById('data-ap').value;
-  if(!seq||!placa||!tipo||!marca||!modelo||!unid||!dataAp){toast('Preencha os campos obrigatórios (*)','err');return;}
+  if(!seq||!placa||!tipo||!marca||!modelo||!unid||!dataAp){toast('Preencha os campos obrigatórios (*)','err');_salvandoEmAndamento=false;return;}
   const btn=document.getElementById('btn-salvar');
   btn.disabled=true;btn.textContent='Salvando...';
   const reg={
@@ -970,7 +970,7 @@ async function salvar(){
     criado_por: perfilAtual?.id || null
   };
   const {data:novo,error}=await sb.from('veiculos').insert(reg).select().single();
-  if(error){toast('Erro ao salvar: '+error.message,'err');btn.disabled=false;btn.textContent='💾 Salvar registro';return;}
+  if(error){toast('Erro ao salvar: '+error.message,'err');btn.disabled=false;btn.textContent='💾 Salvar registro';_salvandoEmAndamento=false;return;}
 
   // Registrar na auditoria
   await sb.from('auditoria').insert({
@@ -988,7 +988,7 @@ async function salvar(){
     const {error:upErr}=await sb.storage.from('documentos-veiculos').upload(path,f);
     if(!upErr) await sb.from('veiculos_documentos').insert({veiculo_id:novo.id,storage_path:path,nome_arquivo:f.name});
   }
-  toast('Veículo cadastrado com sucesso!');limpar();
+  toast('Veículo cadastrado com sucesso!');limpar();_salvandoEmAndamento=false;
   btn.disabled=false;btn.textContent='💾 Salvar registro';
 }
 
@@ -1116,8 +1116,9 @@ async function carregarLista(){
       <td>${r.data_apreensao?new Date(r.data_apreensao+'T12:00:00').toLocaleDateString('pt-BR'):'—'}</td>
       <td>${statusSelect(r.id, r.destinacao||'CUSTODIADO')}</td>
       <td style="white-space:nowrap">
-        <button class="btn" style="padding:5px 12px;font-size:12px" onclick="verFicha(${r.id})">Ver ficha</button>
-        ${perfilAtual&&perfilAtual.is_admin?`<button class="btn btn-danger" style="padding:5px 10px;font-size:12px;margin-left:6px" onclick="excluir(${r.id})">🗑</button>`:''}
+         <button class="btn" style="padding:5px 12px;font-size:12px" onclick="verFicha(${r.id})">Ver ficha</button>
+          <button class="btn" style="padding:5px 12px;font-size:12px;margin-left:4px;color:var(--blue-600);border-color:var(--blue-200)" onclick="abrirEditar(${r.id})">✎ Editar</button>
+         ${perfilAtual&&perfilAtual.is_admin?`<button class="btn btn-danger" style="padding:5px 10px;font-size:12px;margin-left:4px" onclick="excluir(${r.id})">🗑</button>`:''}
       </td></tr>`).join('')
     +'</tbody></table></div>';
 }
@@ -1913,6 +1914,313 @@ function getChecks(){return Array.from(document.querySelectorAll('.check-group i
 function toast(msg,tipo){const el=document.getElementById('toast');el.textContent=msg;el.style.background=tipo==='err'?'var(--red-600)':'var(--teal-800)';el.classList.add('show');setTimeout(()=>el.classList.remove('show'),3000);}
 
 init();
+
+// ══════════════════════════════════════════════════════
+// MODAL EDITAR VEÍCULO + GERENCIAR FOTOS/DOCS
+// ══════════════════════════════════════════════════════
+let _editandoVeiculoId = null;
+let _fotosNovas = [];
+let _docsNovos  = [];
+
+async function abrirEditar(id){
+  _editandoVeiculoId = id;
+  _fotosNovas = [];
+  _docsNovos  = [];
+
+  const {data:r} = await sb.from('veiculos').select('*').eq('id',id).single();
+  const {data:fotos} = await sb.from('veiculos_fotos').select('*').eq('veiculo_id',id);
+  const {data:docs}  = await sb.from('veiculos_documentos').select('*').eq('veiculo_id',id);
+
+  // Montar URLs assinadas
+  const fotoUrls = fotos && fotos.length ? await Promise.all(fotos.map(async f=>{
+    const {data:sd} = await sb.storage.from('fotos-veiculos').createSignedUrl(f.storage_path,3600);
+    return {id:f.id, url:sd?.signedUrl, nome:f.nome_arquivo, path:f.storage_path};
+  })) : [];
+  const docUrls = docs && docs.length ? await Promise.all(docs.map(async d=>{
+    const {data:sd} = await sb.storage.from('documentos-veiculos').createSignedUrl(d.storage_path,3600);
+    return {id:d.id, url:sd?.signedUrl, nome:d.nome_arquivo, path:d.storage_path, isPdf:d.nome_arquivo?.toLowerCase().endsWith('.pdf')};
+  })) : [];
+
+  // Criar/reabrir modal
+  let modal = document.getElementById('modal-editar-veiculo');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'modal-editar-veiculo';
+    modal.className = 'modal-bg open';
+    modal.style.zIndex = '160';
+    modal.onclick = e => { if(e.target===modal) fecharEditar(); };
+    document.body.appendChild(modal);
+  } else {
+    modal.classList.add('open');
+  }
+
+  const fmtD = v => v ? v.slice(0,10) : '';
+
+  modal.innerHTML = `
+  <div class="modal-panel" style="width:680px;max-width:100%">
+    <div class="modal-top">
+      <h3 style="font-size:16px;font-weight:700">✎ Editar — <span style="color:var(--blue-600);font-family:monospace">${r.num_cadastro||''}</span></h3>
+      <button class="btn" onclick="fecharEditar()">✕ Fechar</button>
+    </div>
+
+    <!-- FOTOS EXISTENTES -->
+    <div class="sec-title" style="margin-top:0">📷 Fotos (${fotoUrls.length}/3)</div>
+    <div id="edit-fotos-existentes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-bottom:10px">
+      ${fotoUrls.map(f=>`
+        <div id="edit-foto-${f.id}" style="position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
+          <img src="${f.url}" style="width:100%;height:80px;object-fit:cover;display:block">
+          <button onclick="removerFotoExistente(${f.id},'${f.path}')" style="position:absolute;top:3px;right:3px;background:rgba(163,45,45,.9);color:#fff;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center">✕</button>
+          <div style="font-size:10px;color:var(--text-muted);padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.nome}</div>
+        </div>`).join('')}
+      ${fotoUrls.length === 0 ? '<p style="font-size:13px;color:var(--text-muted)">Nenhuma foto.</p>' : ''}
+    </div>
+    <div id="edit-fotos-novas-prev" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-bottom:6px"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px" id="edit-foto-add-wrap">
+      <button class="btn" style="font-size:12px" onclick="document.getElementById('edit-foto-inp').click()">＋ Adicionar foto</button>
+      <span id="edit-foto-counter" style="font-size:12px;color:var(--text-muted)">${fotoUrls.length}/3</span>
+    </div>
+    <input type="file" id="edit-foto-inp" accept="image/*" multiple style="display:none" onchange="addFotoEditar(this,${fotoUrls.length})">
+
+    <!-- DOCUMENTOS EXISTENTES -->
+    <div class="sec-title">📄 Documentos (${docUrls.length}/2)</div>
+    <div id="edit-docs-existentes" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+      ${docUrls.map(d=>`
+        <div id="edit-doc-${d.id}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--red-50,#fff5f5);border:1px solid #fcc;border-radius:8px">
+          <span style="font-size:20px">${d.isPdf?'📄':'🖼'}</span>
+          <a href="${d.url}" target="_blank" style="flex:1;font-size:12px;font-weight:600;color:var(--red-600);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.nome}</a>
+          <button onclick="removerDocExistente(${d.id},'${d.path}')" style="background:transparent;border:none;color:var(--red-600);cursor:pointer;font-size:16px;padding:0 4px">✕</button>
+        </div>`).join('')}
+      ${docUrls.length === 0 ? '<p style="font-size:13px;color:var(--text-muted)">Nenhum documento.</p>' : ''}
+    </div>
+    <div id="edit-docs-novos-prev" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px" id="edit-doc-add-wrap">
+      <button class="btn" style="font-size:12px" onclick="document.getElementById('edit-doc-inp').click()">＋ Adicionar documento</button>
+      <span id="edit-doc-counter" style="font-size:12px;color:var(--text-muted)">${docUrls.length}/2</span>
+    </div>
+    <input type="file" id="edit-doc-inp" accept=".pdf,image/*" multiple style="display:none" onchange="addDocEditar(this,${docUrls.length})">
+
+    <!-- CAMPOS EDITÁVEIS -->
+    <div class="sec-title">Dados do veículo</div>
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="field"><label>Tipo</label>
+        <select id="edit-tipo">
+          ${['Automóvel','Motocicleta','Caminhonete','Caminhão','Ônibus','Microônibus','Camioneta','Utilitário','Reboque','Outro'].map(t=>`<option${r.tipo===t?' selected':''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>Marca</label><input type="text" id="edit-marca" value="${r.marca||''}"></div>
+      <div class="field"><label>Modelo</label><input type="text" id="edit-modelo" value="${r.modelo||''}"></div>
+      <div class="field"><label>Ano</label><input type="text" id="edit-ano-veiculo" value="${r.ano_veiculo||''}"></div>
+      <div class="field"><label>Placa</label><input type="text" id="edit-placa" value="${r.placa||''}" oninput="this.value=this.value.toUpperCase()"></div>
+      <div class="field"><label>Cor</label><input type="text" id="edit-cor" value="${r.cor||''}"></div>
+    </div>
+    <div class="form-grid-2" style="margin-bottom:14px">
+      <div class="field"><label>Chassi</label><input type="text" id="edit-chassi" value="${r.chassi||''}" oninput="this.value=this.value.toUpperCase()"></div>
+      <div class="field"><label>Renavam</label><input type="text" id="edit-renavam" value="${r.renavam||''}"></div>
+    </div>
+    <div class="field" style="margin-bottom:14px"><label>Proprietário</label><input type="text" id="edit-proprietario" value="${r.proprietario||''}"></div>
+
+    <div class="sec-title">Ocorrência</div>
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="field"><label>Data da apreensão</label><input type="date" id="edit-data-ap" value="${fmtD(r.data_apreensao)}" max="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Local</label><input type="text" id="edit-local-ap" value="${r.local_apreensao||''}"></div>
+      <div class="field"><label>Motivação</label><input type="text" id="edit-motivacao" value="${r.motivacao||''}"></div>
+      <div class="field"><label>Pessoa apreendida</label><input type="text" id="edit-pessoa" value="${r.pessoa_apreendida||''}"></div>
+    </div>
+
+    <div class="sec-title">Polícia Civil</div>
+    <div class="form-grid" style="margin-bottom:14px">
+      <div class="field"><label>Delegacia de origem</label><input type="text" id="edit-del-origem" value="${r.delegacia_origem||''}"></div>
+      <div class="field"><label>Local do depósito</label><input type="text" id="edit-deposito" value="${r.local_deposito||''}"></div>
+      <div class="field"><label>Nº Procedimento</label><input type="text" id="edit-num-proc" value="${r.num_procedimento||''}"></div>
+      <div class="field"><label>Nº Processo</label><input type="text" id="edit-num-processo" value="${r.num_processo||''}"></div>
+    </div>
+
+    <div class="sec-title">Destinação</div>
+    <div class="form-grid-2" style="margin-bottom:14px">
+      <div class="field"><label>Situação</label>
+        <select id="edit-destinacao">
+          ${['CUSTODIADO','ENCAMINHADO AO DETRAN','ENTREGUE AO PROPRIETÁRIO','ENCAMINHADO AO FÓRUM'].map(s=>`<option value="${s}"${r.destinacao===s?' selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>Data de destinação</label><input type="date" id="edit-data-dest" value="${fmtD(r.data_destinacao)}"></div>
+    </div>
+    <div class="field" style="margin-bottom:14px"><label>Quem recebeu</label><textarea id="edit-quem-recebeu" rows="2">${r.quem_recebeu||''}</textarea></div>
+    <div class="field" style="margin-bottom:14px"><label>Delegado que restituiu</label><input type="text" id="edit-del-restituiu" value="${r.delegado_restituiu||''}"></div>
+    <div class="field" style="margin-bottom:14px"><label>Observações</label><textarea id="edit-observacoes" rows="3">${r.observacoes||''}</textarea></div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-salvar-editar" onclick="salvarEditar()">💾 Salvar alterações</button>
+      <button class="btn" onclick="fecharEditar()">Cancelar</button>
+    </div>
+  </div>`;
+
+  // Guardar contagens atuais para validação
+  modal._fotosExistentesCount = fotoUrls.length;
+  modal._docsExistentesCount  = docUrls.length;
+}
+
+function fecharEditar(){
+  const m = document.getElementById('modal-editar-veiculo');
+  if(m) m.classList.remove('open');
+  _fotosNovas = [];
+  _docsNovos  = [];
+}
+
+function addFotoEditar(inp, existentesCount){
+  const modal = document.getElementById('modal-editar-veiculo');
+  const atual = (modal._fotosExistentesCount || existentesCount) + _fotosNovas.length;
+  const files = Array.from(inp.files);
+  if(atual + files.length > 3){
+    toast('Máximo 3 fotos por veículo.','err'); inp.value=''; return;
+  }
+  files.forEach(f=>{
+    if(f.size > 5*1024*1024){toast('Foto maior que 5 MB: '+f.name,'err');return;}
+    _fotosNovas.push(f);
+  });
+  inp.value='';
+  renderFotosNovasPrev();
+  document.getElementById('edit-foto-counter').textContent = (modal._fotosExistentesCount + _fotosNovas.length)+'/3';
+}
+
+function addDocEditar(inp, existentesCount){
+  const modal = document.getElementById('modal-editar-veiculo');
+  const atual = (modal._docsExistentesCount || existentesCount) + _docsNovos.length;
+  const files = Array.from(inp.files);
+  if(atual + files.length > 2){
+    toast('Máximo 2 documentos por veículo.','err'); inp.value=''; return;
+  }
+  files.forEach(f=>{
+    if(f.size > 10*1024*1024){toast('Arquivo maior que 10 MB: '+f.name,'err');return;}
+    _docsNovos.push(f);
+  });
+  inp.value='';
+  renderDocsNovosPrev();
+  document.getElementById('edit-doc-counter').textContent = (modal._docsExistentesCount + _docsNovos.length)+'/2';
+}
+
+function renderFotosNovasPrev(){
+  const g = document.getElementById('edit-fotos-novas-prev');
+  if(!g) return;
+  g.innerHTML = _fotosNovas.map((f,i)=>`
+    <div style="position:relative;border-radius:8px;overflow:hidden;border:1px dashed var(--blue-200)">
+      <img src="${URL.createObjectURL(f)}" style="width:100%;height:80px;object-fit:cover;display:block">
+      <button onclick="remFotoNova(${i})" style="position:absolute;top:3px;right:3px;background:rgba(163,45,45,.9);color:#fff;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer;font-size:13px">✕</button>
+      <div style="font-size:10px;color:var(--blue-600);padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Nova: ${f.name}</div>
+    </div>`).join('');
+}
+
+function renderDocsNovosPrev(){
+  const g = document.getElementById('edit-docs-novos-prev');
+  if(!g) return;
+  g.innerHTML = _docsNovos.map((f,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 12px;background:var(--blue-50);border:1px dashed var(--blue-200);border-radius:8px">
+      <span>${f.name.toLowerCase().endsWith('.pdf')?'📄':'🖼'}</span>
+      <span style="flex:1;font-size:12px;color:var(--blue-800);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Novo: ${f.name}</span>
+      <button onclick="remDocNovo(${i})" style="background:transparent;border:none;color:var(--red-600);cursor:pointer;font-size:16px">✕</button>
+    </div>`).join('');
+}
+
+function remFotoNova(i){
+  _fotosNovas.splice(i,1);
+  renderFotosNovasPrev();
+  const modal = document.getElementById('modal-editar-veiculo');
+  document.getElementById('edit-foto-counter').textContent = (modal._fotosExistentesCount + _fotosNovas.length)+'/3';
+}
+
+function remDocNovo(i){
+  _docsNovos.splice(i,1);
+  renderDocsNovosPrev();
+  const modal = document.getElementById('modal-editar-veiculo');
+  document.getElementById('edit-doc-counter').textContent = (modal._docsExistentesCount + _docsNovos.length)+'/2';
+}
+
+async function removerFotoExistente(fotoId, storagePath){
+  if(!confirm('Remover esta foto permanentemente?')) return;
+  await sb.storage.from('fotos-veiculos').remove([storagePath]);
+  await sb.from('veiculos_fotos').delete().eq('id', fotoId);
+  const el = document.getElementById('edit-foto-'+fotoId);
+  if(el){ el.remove(); }
+  const modal = document.getElementById('modal-editar-veiculo');
+  modal._fotosExistentesCount = Math.max(0, (modal._fotosExistentesCount||1)-1);
+  document.getElementById('edit-foto-counter').textContent = (modal._fotosExistentesCount + _fotosNovas.length)+'/3';
+  toast('Foto removida.');
+}
+
+async function removerDocExistente(docId, storagePath){
+  if(!confirm('Remover este documento permanentemente?')) return;
+  await sb.storage.from('documentos-veiculos').remove([storagePath]);
+  await sb.from('veiculos_documentos').delete().eq('id', docId);
+  const el = document.getElementById('edit-doc-'+docId);
+  if(el){ el.remove(); }
+  const modal = document.getElementById('modal-editar-veiculo');
+  modal._docsExistentesCount = Math.max(0, (modal._docsExistentesCount||1)-1);
+  document.getElementById('edit-doc-counter').textContent = (modal._docsExistentesCount + _docsNovos.length)+'/2';
+  toast('Documento removido.');
+}
+
+async function salvarEditar(){
+  const id = _editandoVeiculoId;
+  if(!id) return;
+  const btn = document.getElementById('btn-salvar-editar');
+  btn.disabled=true; btn.textContent='Salvando...';
+
+  const updates = {
+    tipo:              document.getElementById('edit-tipo').value,
+    marca:             document.getElementById('edit-marca').value.trim(),
+    modelo:            document.getElementById('edit-modelo').value.trim(),
+    ano_veiculo:       document.getElementById('edit-ano-veiculo').value.trim(),
+    placa:             document.getElementById('edit-placa').value.trim(),
+    cor:               document.getElementById('edit-cor').value.trim(),
+    chassi:            document.getElementById('edit-chassi').value.trim(),
+    renavam:           document.getElementById('edit-renavam').value.trim(),
+    proprietario:      document.getElementById('edit-proprietario').value.trim(),
+    data_apreensao:    document.getElementById('edit-data-ap').value || null,
+    local_apreensao:   document.getElementById('edit-local-ap').value.trim(),
+    motivacao:         document.getElementById('edit-motivacao').value.trim(),
+    pessoa_apreendida: document.getElementById('edit-pessoa').value.trim(),
+    delegacia_origem:  document.getElementById('edit-del-origem').value.trim(),
+    local_deposito:    document.getElementById('edit-deposito').value.trim(),
+    num_procedimento:  document.getElementById('edit-num-proc').value.trim(),
+    num_processo:      document.getElementById('edit-num-processo').value.trim(),
+    destinacao:        document.getElementById('edit-destinacao').value,
+    data_destinacao:   document.getElementById('edit-data-dest').value || null,
+    quem_recebeu:      document.getElementById('edit-quem-recebeu').value.trim(),
+    delegado_restituiu:document.getElementById('edit-del-restituiu').value.trim(),
+    observacoes:       document.getElementById('edit-observacoes').value.trim(),
+  };
+
+  const {error} = await sb.from('veiculos').update(updates).eq('id', id);
+  if(error){ toast('Erro ao salvar: '+error.message,'err'); btn.disabled=false; btn.textContent='💾 Salvar alterações'; return; }
+
+  // Registrar auditoria
+  await sb.from('auditoria').insert({
+    tabela:'veiculos', operacao:'UPDATE', registro_id:id,
+    dados_depois:{num_cadastro: updates.placa, placa: updates.placa},
+    campo_alterado:'edicao_completa', valor_depois:'dados atualizados',
+    usuario_email: perfilAtual?.email || ''
+  });
+
+  // Upload de novas fotos
+  for(const f of _fotosNovas){
+    const path = `${id}/${Date.now()}-${f.name.replace(/\s/g,'_')}`;
+    const {error:upErr} = await sb.storage.from('fotos-veiculos').upload(path, f);
+    if(!upErr) await sb.from('veiculos_fotos').insert({veiculo_id:id, storage_path:path, nome_arquivo:f.name});
+  }
+
+  // Upload de novos documentos
+  for(const f of _docsNovos){
+    const path = `${id}/doc-${Date.now()}-${f.name.replace(/\s/g,'_')}`;
+    const {error:upErr} = await sb.storage.from('documentos-veiculos').upload(path, f);
+    if(!upErr) await sb.from('veiculos_documentos').insert({veiculo_id:id, storage_path:path, nome_arquivo:f.name});
+  }
+
+  toast('Veículo atualizado com sucesso!');
+  fecharEditar();
+  carregarLista();
+}
+// ══════════════════════════════════════════════════════
+// FIM DO PATCH
+// ══════════════════════════════════════════════════════
 </script>
 </body>
 </html>
