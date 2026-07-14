@@ -1188,7 +1188,7 @@ async function verFicha(id){
     ${dr('Placa',r.placa)}${dr('Cor',r.cor)}${dr('Ano',r.ano_veiculo)}${dr('Chassi',r.chassi)}${dr('Renavam',r.renavam)}${dr('Proprietário',r.proprietario)}
     <div class="sec-title">Ocorrência</div>
     ${dr('Data',fmtD(r.data_apreensao))}${dr('Local',r.local_apreensao)}${dr('Motivação',r.motivacao)}${dr('Restrição',r.restricao)}${dr('Pessoa',r.pessoa_apreendida)}${dr('Órgão',r.orgao)}
-    <div class="sec-title">Polícia Civil</div>
+    <div class="sec-title">Perícias</div>     <div class="form-grid" style="margin-bottom:14px">       <div class="field"><label>Perícia solicitada?</label>         <div class="radio-group">           <label><input type="radio" name="edit-pericia-sol" value="SIM" ${r.pericia_sol==='SIM'?'checked':''}> Sim</label>           <label><input type="radio" name="edit-pericia-sol" value="NÃO" ${r.pericia_sol==='NÃO'?'checked':''}> Não</label>         </div>       </div>       <div class="field"><label>Perícia realizada?</label>         <div class="radio-group">           <label><input type="radio" name="edit-pericia-real" value="SIM" ${r.pericia_real==='SIM'?'checked':''}> Sim</label>           <label><input type="radio" name="edit-pericia-real" value="NÃO" ${r.pericia_real==='NÃO'?'checked':''}> Não</label>         </div>       </div>       <div class="field"><label>Qual perícia</label><input type="text" id="edit-qual-pericia" value="${r.qual_pericia||''}"></div>       <div class="field"><label>Data da perícia</label><input type="date" id="edit-data-pericia" value="${r.data_pericia?r.data_pericia.slice(0,10):''}"></div>     </div>      <div class="sec-title">Polícia Civil</div>
     ${dr('Delegacia origem',r.delegacia_origem)}${dr('Depósito',r.local_deposito)}${dr('Delegado',r.delegado_recebimento)}${dr('Nº Procedimento',r.num_procedimento)}${dr('Nº Processo',r.num_processo)}
     <div class="sec-title">Perícias</div>
     ${dr('Solicitada',r.pericia_sol)}${dr('Realizada',r.pericia_real)}${dr('Qual',r.qual_pericia)}${dr('Data',fmtD(r.data_pericia))}
@@ -2178,7 +2178,7 @@ async function salvarEditar(){
     local_apreensao:   document.getElementById('edit-local-ap').value.trim(),
     motivacao:         document.getElementById('edit-motivacao').value.trim(),
     pessoa_apreendida: document.getElementById('edit-pessoa').value.trim(),
-    delegacia_origem:  document.getElementById('edit-del-origem').value.trim(),
+    pericia_sol:       document.querySelector('input[name="edit-pericia-sol"]:checked')?.value||'',     pericia_real:      document.querySelector('input[name="edit-pericia-real"]:checked')?.value||'',     qual_pericia:      document.getElementById('edit-qual-pericia').value.trim(),     data_pericia:      document.getElementById('edit-data-pericia').value||null,     delegacia_origem:  document.getElementById('edit-del-origem').value.trim(),
     local_deposito:    document.getElementById('edit-deposito').value.trim(),
     num_procedimento:  document.getElementById('edit-num-proc').value.trim(),
     num_processo:      document.getElementById('edit-num-processo').value.trim(),
