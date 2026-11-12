@@ -1214,20 +1214,24 @@ async function carregarLista(){
   if(error){document.getElementById('lista-conteudo').innerHTML='<p style="color:var(--red-600);padding:1rem">Erro ao carregar.</p>';return;}
   const ids=(data||[]).map(r=>r.id);
   let fotoCount={};
+  let docCount={};
   if(ids.length){
     const {data:fds}=await sb.from('veiculos_fotos').select('veiculo_id').in('veiculo_id',ids);
     (fds||[]).forEach(f=>{fotoCount[f.veiculo_id]=(fotoCount[f.veiculo_id]||0)+1;});
+    const {data:dds}=await sb.from('veiculos_documentos').select('veiculo_id').in('veiculo_id',ids);
+    (dds||[]).forEach(d=>{docCount[d.veiculo_id]=(docCount[d.veiculo_id]||0)+1;});
   }
   if(!data||!data.length){
     document.getElementById('lista-conteudo').innerHTML='<div class="empty"><svg viewBox="0 0 24 24"><path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v10a2 2 0 0 1-2 2h-3"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg><p>Nenhum veículo encontrado</p></div>';return;
   }
-  document.getElementById('lista-conteudo').innerHTML='<div class="table-wrap"><table><thead><tr><th>Nº Cadastro</th><th style="width:100px">Placa</th><th>Veículo</th><th>Nº Procedimento</th><th>Fotos</th><th>Data Apreensão</th><th>Situação</th><th></th></tr></thead><tbody>'
+  document.getElementById('lista-conteudo').innerHTML='<div class="table-wrap"><table><thead><tr><th>Nº Cadastro</th><th style="width:100px">Placa</th><th>Veículo</th><th>Nº Procedimento</th><th>Fotos</th><th>Docs</th><th>Data Apreensão</th><th>Situação</th><th></th></tr></thead><tbody>'
     +data.map((r,i)=>`<tr>
       <td><code style="font-size:12px;background:var(--bg);padding:2px 6px;border-radius:4px">${r.num_cadastro||'—'}</code></td>
       <td><strong>${r.placa}</strong></td>
       <td>${r.marca} ${r.modelo}${r.cor?' · '+r.cor:''}</td>
       <td style="font-size:12px;color:var(--text-muted);max-width:160px;word-break:break-word;white-space:normal" title="${r.num_procedimento||''}">${r.num_procedimento||'—'}</td>
       <td>${fotoCount[r.id]?'<span class="badge badge-blue">📷 '+fotoCount[r.id]+'</span>':'<span style="color:var(--text-muted);font-size:12px">—</span>'}</td>
+      <td>${docCount[r.id]?'<span class="badge" style="background:var(--teal-100,#CCFBF1);color:var(--teal-700,#0F766E);font-size:11px;padding:3px 8px;border-radius:12px;font-weight:600">📄 '+docCount[r.id]+'</span>':'<span style="color:var(--text-muted);font-size:12px">—</span>'}</td>
       <td>${r.data_apreensao?new Date(r.data_apreensao+'T12:00:00').toLocaleDateString('pt-BR'):'—'}</td>
       <td>${statusSelect(r.id, r.destinacao||'CUSTODIADO')}</td>
       <td style="white-space:nowrap;padding-right:12px">
