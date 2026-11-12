@@ -1092,12 +1092,23 @@ let _salvandoEmAndamento = false; async function salvar(){   if(_salvandoEmAndam
     const {error:upErr}=await sb.storage.from('fotos-veiculos').upload(path,f);
     if(!upErr) await sb.from('veiculos_fotos').insert({veiculo_id:novo.id,storage_path:path,nome_arquivo:f.name});
   }
+  let errosDoc=[];
   for(const f of docsTemp){
     const path=`${novo.id}/doc-${Date.now()}-${f.name.replace(/\s/g,'_')}`;
     const {error:upErr}=await sb.storage.from('documentos-veiculos').upload(path,f);
-    if(!upErr) await sb.from('veiculos_documentos').insert({veiculo_id:novo.id,storage_path:path,nome_arquivo:f.name});
+    if(upErr){
+      console.error('Erro upload doc',f.name,upErr);
+      errosDoc.push(f.name+': '+upErr.message);
+    } else {
+      await sb.from('veiculos_documentos').insert({veiculo_id:novo.id,storage_path:path,nome_arquivo:f.name});
+    }
   }
-  toast('Veículo cadastrado com sucesso!');limpar();_salvandoEmAndamento=false;
+  if(errosDoc.length>0){
+    toast('Veículo salvo, mas erro ao anexar doc: '+errosDoc[0],'err');
+  } else {
+    toast('Veículo cadastrado com sucesso!');
+  }
+  limpar();_salvandoEmAndamento=false;
   btn.disabled=false;btn.textContent='💾 Salvar registro';
 }
 
@@ -2471,13 +2482,23 @@ async function salvarEditar(){
   }
 
   // Upload de novos documentos
+  let errosDocEdit=[];
   for(const f of _docsNovos){
     const path = `${id}/doc-${Date.now()}-${f.name.replace(/\s/g,'_')}`;
     const {error:upErr} = await sb.storage.from('documentos-veiculos').upload(path, f);
-    if(!upErr) await sb.from('veiculos_documentos').insert({veiculo_id:id, storage_path:path, nome_arquivo:f.name});
+    if(upErr){
+      console.error('Erro upload doc editar',f.name,upErr);
+      errosDocEdit.push(f.name+': '+upErr.message);
+    } else {
+      await sb.from('veiculos_documentos').insert({veiculo_id:id, storage_path:path, nome_arquivo:f.name});
+    }
   }
 
-  toast('Veículo atualizado com sucesso!');
+  if(errosDocEdit.length>0){
+    toast('Dados salvos, mas erro ao anexar doc: '+errosDocEdit[0],'err');
+  } else {
+    toast('Veículo atualizado com sucesso!');
+  }
   fecharEditar();
   carregarLista();
 }
